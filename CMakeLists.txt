@@ -63,6 +63,17 @@ target_link_libraries(jawiki_build PRIVATE core ZLIB::ZLIB)
 target_compile_features(jawiki_build PRIVATE cxx_std_20)
 
 # -----------------------------
+# Tool: louds_query (load .bin and query)
+# -----------------------------
+add_executable(louds_query
+  src/tools/louds_query.cpp
+)
+
+target_link_libraries(louds_query PRIVATE core)
+target_compile_features(louds_query PRIVATE cxx_std_20)
+
+
+# -----------------------------
 # Tests
 # -----------------------------
 enable_testing()
