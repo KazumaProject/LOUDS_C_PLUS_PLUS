@@ -197,12 +197,34 @@ static Args parse_args(int argc, char **argv)
 }
 
 // -----------------------------
+// Bytes formatter (human readable)
+// -----------------------------
+static std::string format_bytes(uint64_t bytes)
+{
+    const char *units[] = {"B", "KiB", "MiB", "GiB", "TiB"};
+    double v = static_cast<double>(bytes);
+    int u = 0;
+    while (v >= 1024.0 && u < 4)
+    {
+        v /= 1024.0;
+        ++u;
+    }
+    std::ostringstream oss;
+    oss.setf(std::ios::fixed);
+    oss.precision(2);
+    oss << v << " " << units[u];
+    return oss.str();
+}
+
+// -----------------------------
 // Metrics JSON writer (no external deps)
 // -----------------------------
 static void write_metrics_json(
     const fs::path &path,
     uint64_t word_count,
     uint64_t char_count,
+    uint64_t input_gz_bytes,
+    uint64_t input_utf8_bytes_total,
     double seconds_total,
     double seconds_convert_louds,
     double seconds_convert_louds_termid)
@@ -216,6 +238,8 @@ static void write_metrics_json(
     ofs << "{\n";
     ofs << "  \"word_count\": " << word_count << ",\n";
     ofs << "  \"char_count\": " << char_count << ",\n";
+    ofs << "  \"input_gz_bytes\": " << input_gz_bytes << ",\n";
+    ofs << "  \"input_utf8_bytes_total\": " << input_utf8_bytes_total << ",\n";
     ofs << "  \"seconds_total\": " << seconds_total << ",\n";
     ofs << "  \"seconds_convert_louds\": " << seconds_convert_louds << ",\n";
     ofs << "  \"seconds_convert_louds_with_term_id\": " << seconds_convert_louds_termid << "\n";
@@ -237,12 +261,26 @@ int main(int argc, char **argv)
 
         auto t_begin = std::chrono::steady_clock::now();
 
+        // Input gzip file size (compressed size)
+        uint64_t input_gz_bytes = 0;
+        try
+        {
+            input_gz_bytes = static_cast<uint64_t>(fs::file_size(args.input_gz));
+        }
+        catch (...)
+        {
+            input_gz_bytes = 0;
+        }
+
         // 1) Read titles and build tries
         PrefixTree trie;
         PrefixTreeWithTermId trie_termid;
 
         uint64_t word_count = 0;
         uint64_t char_count = 0;
+
+        // Total UTF-8 bytes read (approx. uncompressed bytes without newline)
+        uint64_t input_utf8_bytes_total = 0;
 
         gzFile f = gzopen(args.input_gz.c_str(), "rb");
         if (!f)
@@ -259,6 +297,11 @@ int main(int argc, char **argv)
                 break;
             if (line.empty())
                 continue;
+
+            // Accumulate bytes (line already trimmed of \n/\r in gz_read_line)
+            input_utf8_bytes_total += static_cast<uint64_t>(line.size());
+            // If you want to estimate including newline, you can add:
+            // input_utf8_bytes_total += 1;
 
             if (!utf8_to_u32(line, u32))
             {
@@ -302,11 +345,23 @@ int main(int argc, char **argv)
             out_metrics,
             word_count,
             char_count,
+            input_gz_bytes,
+            input_utf8_bytes_total,
             seconds_total,
             seconds_convert_louds,
             seconds_convert_termid);
 
         // Console summary (Actions log)
+        std::cout << "input_gz_bytes=" << input_gz_bytes;
+        if (input_gz_bytes != 0)
+        {
+            std::cout << " (" << format_bytes(input_gz_bytes) << ")";
+        }
+        std::cout << "\n";
+
+        std::cout << "input_utf8_bytes_total=" << input_utf8_bytes_total
+                  << " (" << format_bytes(input_utf8_bytes_total) << ")\n";
+
         std::cout << "word_count=" << word_count << "\n";
         std::cout << "char_count=" << char_count << "\n";
         std::cout << "seconds_total=" << seconds_total << "\n";

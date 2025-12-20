@@ -3,7 +3,7 @@ name: jawiki louds benchmark
 on:
   push:
     tags:
-      - "*"            
+      - "*"
   workflow_dispatch:
     inputs:
       dump:
@@ -20,14 +20,41 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
 
-    # tag push でも workflow_dispatch でも同じ変数で扱えるようにする
-    env:
-      DUMP: ${{ inputs.dump || 'latest' }}
-      LIMIT: ${{ inputs.limit || '0' }}
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Resolve variables
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            DUMP="${{ github.event.inputs.dump }}"
+            LIMIT="${{ github.event.inputs.limit }}"
+          else
+            # tag push の場合は inputs が存在しないため固定
+            DUMP="latest"
+            LIMIT="0"
+          fi
+
+          echo "DUMP=$DUMP" >> "$GITHUB_ENV"
+          echo "LIMIT=$LIMIT" >> "$GITHUB_ENV"
+
+          if [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+            echo "TAG_NAME=$TAG_NAME" >> "$GITHUB_ENV"
+          else
+            echo "TAG_NAME=" >> "$GITHUB_ENV"
+          fi
+
+          echo "Resolved:"
+          echo "  DUMP=$DUMP"
+          echo "  LIMIT=$LIMIT"
+          echo "  TAG_NAME=${TAG_NAME:-}"
 
       - name: Install build tools
         run: |
@@ -67,7 +94,7 @@ jobs:
 
           FILE="jawiki-${DUMP}-all-titles-in-ns0.gz"
 
-          # /usr/bin/time の結果を time.txt に、プログラムの統計を metrics.json に出力
+          # /usr/bin/time の結果を out/time.txt に、プログラムの統計を out/metrics.json に出力
           /usr/bin/time -v \
             build/jawiki_build \
               --input "data/${FILE}" \
@@ -81,7 +108,22 @@ jobs:
           echo "===== time.txt (tail) ====="
           tail -n 50 out/time.txt
 
-      - name: Upload artifacts
+      # Tag push のときは GitHub Release に assets を添付
+      - name: Upload assets to GitHub Release (tag push only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            out/*.bin
+            out/metrics.json
+            out/time.txt
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+          name: "jawiki louds benchmark (${{ env.DUMP }})"
+
+      # workflow_dispatch のときは従来どおり Actions artifact にアップロード
+      - name: Upload artifacts (workflow_dispatch only)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v4
         with:
           name: jawiki_louds_${{ env.DUMP }}
