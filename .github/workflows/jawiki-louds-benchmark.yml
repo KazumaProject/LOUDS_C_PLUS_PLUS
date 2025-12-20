@@ -1,0 +1,92 @@
+name: jawiki louds benchmark
+
+on:
+  push:
+    tags:
+      - "*"            
+  workflow_dispatch:
+    inputs:
+      dump:
+        description: "jawiki dump directory (e.g. latest or 20251201)"
+        required: false
+        default: "latest"
+      limit:
+        description: "Optional limit of titles to process (0 = no limit)"
+        required: false
+        default: "0"
+
+jobs:
+  build-and-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    # tag push でも workflow_dispatch でも同じ変数で扱えるようにする
+    env:
+      DUMP: ${{ inputs.dump || 'latest' }}
+      LIMIT: ${{ inputs.limit || '0' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ zlib1g-dev time
+
+      - name: Configure (CMake)
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: |
+          cmake --build build
+
+      - name: Run unit tests
+        run: |
+          ctest --test-dir build --output-on-failure
+
+      - name: Download jawiki all-titles (ns0)
+        run: |
+          set -euxo pipefail
+          mkdir -p data
+          BASE="https://dumps.wikimedia.org/jawiki/${DUMP}"
+          FILE="jawiki-${DUMP}-all-titles-in-ns0.gz"
+          URL="${BASE}/${FILE}"
+
+          echo "Downloading: ${URL}"
+          curl -L --fail --retry 10 --retry-all-errors --connect-timeout 30 --max-time 3600 \
+            -o "data/${FILE}" "${URL}"
+
+          ls -lh "data/${FILE}"
+
+      - name: Build LOUDS from jawiki titles and measure time
+        run: |
+          set -euxo pipefail
+          mkdir -p out
+
+          FILE="jawiki-${DUMP}-all-titles-in-ns0.gz"
+
+          # /usr/bin/time の結果を time.txt に、プログラムの統計を metrics.json に出力
+          /usr/bin/time -v \
+            build/jawiki_build \
+              --input "data/${FILE}" \
+              --out-dir out \
+              --prefix "jawiki_${DUMP}" \
+              --limit "${LIMIT}" \
+            2> out/time.txt
+
+          echo "===== metrics.json ====="
+          cat out/metrics.json
+          echo "===== time.txt (tail) ====="
+          tail -n 50 out/time.txt
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: jawiki_louds_${{ env.DUMP }}
+          path: |
+            out/*.bin
+            out/metrics.json
+            out/time.txt
+          if-no-files-found: error
