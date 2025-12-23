@@ -1,15 +1,15 @@
 #include "louds/louds_converter_utf16.hpp"
 #include <queue>
 
-LOUDS Converter::convert(const PrefixNode *rootNode) const
+LOUDSUtf16 ConverterUtf16::convert(const PrefixNodeUtf16 *rootNode) const
 {
-    LOUDS louds;
-    std::queue<const PrefixNode *> q;
+    LOUDSUtf16 louds;
+    std::queue<const PrefixNodeUtf16 *> q;
     q.push(rootNode);
 
     while (!q.empty())
     {
-        const PrefixNode *node = q.front();
+        const PrefixNodeUtf16 *node = q.front();
         q.pop();
 
         if (node && node->hasChild())
@@ -17,7 +17,7 @@ LOUDS Converter::convert(const PrefixNode *rootNode) const
             for (const auto &kv : node->children)
             {
                 const char16_t label = kv.first;
-                const PrefixNode *child = kv.second.get();
+                const PrefixNodeUtf16 *child = kv.second.get();
 
                 q.push(child);
                 louds.LBSTemp.push_back(true);

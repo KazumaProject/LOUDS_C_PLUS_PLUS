@@ -2,8 +2,9 @@
 #include "prefix/prefix_tree_utf16.hpp"
 #include "louds/louds_utf16_writer.hpp"
 
-class Converter
+// UTF-16 版 Converter は char32_t 版 Converter と衝突するため別名。
+class ConverterUtf16
 {
 public:
-    LOUDS convert(const PrefixNode *rootNode) const;
+    LOUDSUtf16 convert(const PrefixNodeUtf16 *rootNode) const;
 };

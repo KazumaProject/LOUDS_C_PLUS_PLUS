@@ -221,7 +221,7 @@ int main(int argc, char **argv)
     try
     {
         // 1) load dict (UTF-16)
-        LOUDS dict = LOUDS::loadFromFile(dict_path);
+        LOUDSUtf16 dict = LOUDSUtf16::loadFromFile(dict_path);
 
         // 2) UTF-8 -> UTF-16
         std::u16string query_u16;

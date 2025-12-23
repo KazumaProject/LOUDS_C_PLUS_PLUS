@@ -1,7 +1,7 @@
 #include "louds/louds_utf16_writer.hpp"
 #include <stdexcept>
 
-LOUDS::LOUDS()
+LOUDSUtf16::LOUDSUtf16()
 {
     // 既存実装互換のためのダミー要素
     LBSTemp = {true, false};
@@ -9,7 +9,7 @@ LOUDS::LOUDS()
     isLeafTemp = {false, false};
 }
 
-void LOUDS::convertListToBitVector()
+void LOUDSUtf16::convertListToBitVector()
 {
     BitVector lbs;
     for (bool b : LBSTemp)
@@ -24,7 +24,7 @@ void LOUDS::convertListToBitVector()
     isLeafTemp.clear();
 }
 
-int LOUDS::firstChild(int pos) const
+int LOUDSUtf16::firstChild(int pos) const
 {
     const int y = LBS.select0(LBS.rank1(pos)) + 1;
     if (y < 0)
@@ -34,7 +34,7 @@ int LOUDS::firstChild(int pos) const
     return (LBS.get(static_cast<size_t>(y)) ? y : -1);
 }
 
-int LOUDS::traverse(int pos, char16_t c) const
+int LOUDSUtf16::traverse(int pos, char16_t c) const
 {
     int childPos = firstChild(pos);
     if (childPos == -1)
@@ -54,7 +54,7 @@ int LOUDS::traverse(int pos, char16_t c) const
     return -1;
 }
 
-std::vector<std::u16string> LOUDS::commonPrefixSearch(const std::u16string &str) const
+std::vector<std::u16string> LOUDSUtf16::commonPrefixSearch(const std::u16string &str) const
 {
     std::vector<char16_t> resultTemp;
     std::vector<std::u16string> result;
@@ -89,34 +89,34 @@ std::vector<std::u16string> LOUDS::commonPrefixSearch(const std::u16string &str)
     return result;
 }
 
-bool LOUDS::equals(const LOUDS &other) const
+bool LOUDSUtf16::equals(const LOUDSUtf16 &other) const
 {
     return LBS.equals(other.LBS) &&
            isLeaf.equals(other.isLeaf) &&
            labels == other.labels;
 }
 
-void LOUDS::write_u64(std::ostream &os, uint64_t v)
+void LOUDSUtf16::write_u64(std::ostream &os, uint64_t v)
 {
     os.write(reinterpret_cast<const char *>(&v), sizeof(v));
 }
 
-void LOUDS::write_u16(std::ostream &os, uint16_t v)
+void LOUDSUtf16::write_u16(std::ostream &os, uint16_t v)
 {
     os.write(reinterpret_cast<const char *>(&v), sizeof(v));
 }
 
-void LOUDS::read_u64(std::istream &is, uint64_t &v)
+void LOUDSUtf16::read_u64(std::istream &is, uint64_t &v)
 {
     is.read(reinterpret_cast<char *>(&v), sizeof(v));
 }
 
-void LOUDS::read_u16(std::istream &is, uint16_t &v)
+void LOUDSUtf16::read_u16(std::istream &is, uint16_t &v)
 {
     is.read(reinterpret_cast<char *>(&v), sizeof(v));
 }
 
-void LOUDS::write_u64_vec(std::ostream &os, const std::vector<uint64_t> &v)
+void LOUDSUtf16::write_u64_vec(std::ostream &os, const std::vector<uint64_t> &v)
 {
     write_u64(os, static_cast<uint64_t>(v.size()));
     if (!v.empty())
@@ -126,7 +126,7 @@ void LOUDS::write_u64_vec(std::ostream &os, const std::vector<uint64_t> &v)
     }
 }
 
-std::vector<uint64_t> LOUDS::read_u64_vec(std::istream &is)
+std::vector<uint64_t> LOUDSUtf16::read_u64_vec(std::istream &is)
 {
     uint64_t n = 0;
     read_u64(is, n);
@@ -139,13 +139,13 @@ std::vector<uint64_t> LOUDS::read_u64_vec(std::istream &is)
     return v;
 }
 
-void LOUDS::writeBitVector(std::ostream &os, const BitVector &bv) const
+void LOUDSUtf16::writeBitVector(std::ostream &os, const BitVector &bv) const
 {
     write_u64(os, static_cast<uint64_t>(bv.size()));
     write_u64_vec(os, bv.words());
 }
 
-BitVector LOUDS::readBitVector(std::istream &is)
+BitVector LOUDSUtf16::readBitVector(std::istream &is)
 {
     uint64_t nbits = 0;
     read_u64(is, nbits);
@@ -155,7 +155,7 @@ BitVector LOUDS::readBitVector(std::istream &is)
     return bv;
 }
 
-void LOUDS::saveToFile(const std::string &path) const
+void LOUDSUtf16::saveToFile(const std::string &path) const
 {
     std::ofstream ofs(path, std::ios::binary);
     if (!ofs)
@@ -171,13 +171,13 @@ void LOUDS::saveToFile(const std::string &path) const
     }
 }
 
-LOUDS LOUDS::loadFromFile(const std::string &path)
+LOUDSUtf16 LOUDSUtf16::loadFromFile(const std::string &path)
 {
     std::ifstream ifs(path, std::ios::binary);
     if (!ifs)
         throw std::runtime_error("failed to open file for read: " + path);
 
-    LOUDS l;
+    LOUDSUtf16 l;
     l.LBS = readBitVector(ifs);
     l.isLeaf = readBitVector(ifs);
 

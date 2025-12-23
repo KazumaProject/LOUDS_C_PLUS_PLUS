@@ -8,10 +8,9 @@
 
 #include "common/bit_vector_utf16.hpp"
 
-// 保存/生成用 LOUDS（writer）
-// - convertListToBitVector で BitVector化
-// - saveToFile / loadFromFile でバイナリ永続化
-class LOUDS
+// UTF-16 writer は char32_t 版の LOUDS と同名にすると
+// リンカで ODR/ABI 衝突するため、別名にしています。
+class LOUDSUtf16
 {
 public:
     std::vector<bool> LBSTemp;
@@ -20,19 +19,18 @@ public:
     BitVector LBS;
     BitVector isLeaf;
 
-    // Kotlin Char 相当（UTF-16 code unit）
     std::vector<char16_t> labels;
 
-    LOUDS();
+    LOUDSUtf16();
 
     void convertListToBitVector();
 
     std::vector<std::u16string> commonPrefixSearch(const std::u16string &str) const;
 
     void saveToFile(const std::string &path) const;
-    static LOUDS loadFromFile(const std::string &path);
+    static LOUDSUtf16 loadFromFile(const std::string &path);
 
-    bool equals(const LOUDS &other) const;
+    bool equals(const LOUDSUtf16 &other) const;
 
 private:
     int firstChild(int pos) const;

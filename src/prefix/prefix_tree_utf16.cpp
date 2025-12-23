@@ -1,14 +1,14 @@
 #include "prefix/prefix_tree_utf16.hpp"
 
-PrefixTree::PrefixTree()
-    : root(std::make_unique<PrefixNode>()),
+PrefixTreeUtf16::PrefixTreeUtf16()
+    : root(std::make_unique<PrefixNodeUtf16>()),
       nextId(1)
 {
 }
 
-void PrefixTree::insert(const std::u16string &word)
+void PrefixTreeUtf16::insert(const std::u16string &word)
 {
-    PrefixNode *cur = root.get();
+    PrefixNodeUtf16 *cur = root.get();
     for (char16_t ch : word)
     {
         if (auto *nxt = cur->getChild(ch))
@@ -18,11 +18,11 @@ void PrefixTree::insert(const std::u16string &word)
         else
         {
             int id = ++nextId;
-            auto node = std::make_unique<PrefixNode>();
+            auto node = std::make_unique<PrefixNodeUtf16>();
             node->c = ch;
             node->id = id;
 
-            PrefixNode *raw = node.get();
+            PrefixNodeUtf16 *raw = node.get();
             cur->addChild(std::move(node));
             cur = raw;
         }
@@ -30,5 +30,5 @@ void PrefixTree::insert(const std::u16string &word)
     cur->isWord = true;
 }
 
-PrefixNode *PrefixTree::getRoot() { return root.get(); }
-const PrefixNode *PrefixTree::getRoot() const { return root.get(); }
+PrefixNodeUtf16 *PrefixTreeUtf16::getRoot() { return root.get(); }
+const PrefixNodeUtf16 *PrefixTreeUtf16::getRoot() const { return root.get(); }
