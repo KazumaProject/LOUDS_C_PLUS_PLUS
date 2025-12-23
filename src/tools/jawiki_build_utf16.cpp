@@ -246,9 +246,28 @@ static void write_metrics_json(
     uint64_t char_count,
     uint64_t input_gz_bytes,
     uint64_t input_utf8_bytes_total,
-    double seconds_total,
+
+    // Overall wall clock time of the whole program
+    double seconds_total_all,
+
+    // Shared (IO + UTF-8 decode to UTF-16) time
+    double seconds_io_decode,
+
+    // PrefixTree build times (insert only, separated)
+    double seconds_build_prefix_tree,
+    double seconds_build_prefix_tree_with_term_id,
+
+    // Convert times
     double seconds_convert_louds,
-    double seconds_convert_louds_termid)
+    double seconds_convert_louds_with_term_id,
+
+    // Save times
+    double seconds_save_louds,
+    double seconds_save_louds_with_term_id,
+
+    // Totals per output
+    double seconds_total_louds,
+    double seconds_total_louds_with_term_id)
 {
     std::ofstream ofs(path);
     if (!ofs)
@@ -261,9 +280,21 @@ static void write_metrics_json(
     ofs << "  \"char_count\": " << char_count << ",\n";
     ofs << "  \"input_gz_bytes\": " << input_gz_bytes << ",\n";
     ofs << "  \"input_utf8_bytes_total\": " << input_utf8_bytes_total << ",\n";
-    ofs << "  \"seconds_total\": " << seconds_total << ",\n";
+
+    ofs << "  \"seconds_total_all\": " << seconds_total_all << ",\n";
+    ofs << "  \"seconds_io_decode\": " << seconds_io_decode << ",\n";
+
+    ofs << "  \"seconds_build_prefix_tree\": " << seconds_build_prefix_tree << ",\n";
+    ofs << "  \"seconds_build_prefix_tree_with_term_id\": " << seconds_build_prefix_tree_with_term_id << ",\n";
+
     ofs << "  \"seconds_convert_louds\": " << seconds_convert_louds << ",\n";
-    ofs << "  \"seconds_convert_louds_with_term_id\": " << seconds_convert_louds_termid << "\n";
+    ofs << "  \"seconds_convert_louds_with_term_id\": " << seconds_convert_louds_with_term_id << ",\n";
+
+    ofs << "  \"seconds_save_louds\": " << seconds_save_louds << ",\n";
+    ofs << "  \"seconds_save_louds_with_term_id\": " << seconds_save_louds_with_term_id << ",\n";
+
+    ofs << "  \"seconds_total_louds\": " << seconds_total_louds << ",\n";
+    ofs << "  \"seconds_total_louds_with_term_id\": " << seconds_total_louds_with_term_id << "\n";
     ofs << "}\n";
 }
 
@@ -303,6 +334,11 @@ int main(int argc, char **argv)
         // Total UTF-8 bytes read (approx. uncompressed bytes without newline)
         uint64_t input_utf8_bytes_total = 0;
 
+        // Timers
+        double seconds_io_decode = 0.0;
+        double seconds_build_prefix_tree = 0.0;
+        double seconds_build_prefix_tree_with_term_id = 0.0;
+
         gzFile f = gzopen(args.input_gz.c_str(), "rb");
         if (!f)
         {
@@ -312,16 +348,39 @@ int main(int argc, char **argv)
 
         std::string line;
         std::u16string u16;
-        while (gz_read_line(f, line))
+
+        while (true)
         {
-            if (args.limit != 0 && word_count >= args.limit)
+            auto t_io_begin = std::chrono::steady_clock::now();
+            bool ok = gz_read_line(f, line);
+            auto t_io_end = std::chrono::steady_clock::now();
+
+            if (!ok)
+            {
+                seconds_io_decode += std::chrono::duration<double>(t_io_end - t_io_begin).count();
                 break;
+            }
+
+            if (args.limit != 0 && word_count >= args.limit)
+            {
+                seconds_io_decode += std::chrono::duration<double>(t_io_end - t_io_begin).count();
+                break;
+            }
+
             if (line.empty())
+            {
+                seconds_io_decode += std::chrono::duration<double>(t_io_end - t_io_begin).count();
                 continue;
+            }
 
             input_utf8_bytes_total += static_cast<uint64_t>(line.size());
 
-            if (!utf8_to_u16(line, u16))
+            // include decode time in io_decode bucket
+            bool decoded = utf8_to_u16(line, u16);
+            auto t_decode_end = std::chrono::steady_clock::now();
+            seconds_io_decode += std::chrono::duration<double>(t_decode_end - t_io_begin).count();
+
+            if (!decoded)
             {
                 // If decoding fails, skip this line but keep moving
                 continue;
@@ -330,9 +389,22 @@ int main(int argc, char **argv)
             word_count += 1;
             char_count += static_cast<uint64_t>(u16.size()); // UTF-16 code units
 
-            trie.insert(u16);
-            trie_termid.insert(u16);
+            // measure inserts separately
+            {
+                auto t_ins1_begin = std::chrono::steady_clock::now();
+                trie.insert(u16);
+                auto t_ins1_end = std::chrono::steady_clock::now();
+                seconds_build_prefix_tree += std::chrono::duration<double>(t_ins1_end - t_ins1_begin).count();
+            }
+
+            {
+                auto t_ins2_begin = std::chrono::steady_clock::now();
+                trie_termid.insert(u16);
+                auto t_ins2_end = std::chrono::steady_clock::now();
+                seconds_build_prefix_tree_with_term_id += std::chrono::duration<double>(t_ins2_end - t_ins2_begin).count();
+            }
         }
+
         gzclose(f);
 
         // 2) Convert -> LOUDS (UTF-16)
@@ -349,12 +421,32 @@ int main(int argc, char **argv)
         auto t4 = std::chrono::steady_clock::now();
         double seconds_convert_termid = std::chrono::duration<double>(t4 - t3).count();
 
-        // 4) Save
+        // 4) Save (measure separately)
+        auto t_save1_begin = std::chrono::steady_clock::now();
         louds.saveToFile(out_louds.string());
+        auto t_save1_end = std::chrono::steady_clock::now();
+        double seconds_save_louds = std::chrono::duration<double>(t_save1_end - t_save1_begin).count();
+
+        auto t_save2_begin = std::chrono::steady_clock::now();
         louds_termid.saveToFile(out_louds_termid.string());
+        auto t_save2_end = std::chrono::steady_clock::now();
+        double seconds_save_termid = std::chrono::duration<double>(t_save2_end - t_save2_begin).count();
 
         auto t_end = std::chrono::steady_clock::now();
-        double seconds_total = std::chrono::duration<double>(t_end - t_begin).count();
+        double seconds_total_all = std::chrono::duration<double>(t_end - t_begin).count();
+
+        // Totals per output (requested)
+        double seconds_total_louds =
+            seconds_io_decode +
+            seconds_build_prefix_tree +
+            seconds_convert_louds +
+            seconds_save_louds;
+
+        double seconds_total_louds_with_term_id =
+            seconds_io_decode +
+            seconds_build_prefix_tree_with_term_id +
+            seconds_convert_termid +
+            seconds_save_termid;
 
         // 5) Write metrics
         write_metrics_json(
@@ -363,9 +455,21 @@ int main(int argc, char **argv)
             char_count,
             input_gz_bytes,
             input_utf8_bytes_total,
-            seconds_total,
+
+            seconds_total_all,
+            seconds_io_decode,
+
+            seconds_build_prefix_tree,
+            seconds_build_prefix_tree_with_term_id,
+
             seconds_convert_louds,
-            seconds_convert_termid);
+            seconds_convert_termid,
+
+            seconds_save_louds,
+            seconds_save_termid,
+
+            seconds_total_louds,
+            seconds_total_louds_with_term_id);
 
         // Console summary (Actions log)
         std::cout << "input_gz_bytes=" << input_gz_bytes;
@@ -380,9 +484,22 @@ int main(int argc, char **argv)
 
         std::cout << "word_count=" << word_count << "\n";
         std::cout << "char_count=" << char_count << " (UTF-16 code units)\n";
-        std::cout << "seconds_total=" << seconds_total << "\n";
+
+        std::cout << "seconds_io_decode=" << seconds_io_decode << "\n";
+        std::cout << "seconds_build_prefix_tree=" << seconds_build_prefix_tree << "\n";
+        std::cout << "seconds_build_prefix_tree_with_term_id=" << seconds_build_prefix_tree_with_term_id << "\n";
+
         std::cout << "seconds_convert_louds=" << seconds_convert_louds << "\n";
         std::cout << "seconds_convert_louds_with_term_id=" << seconds_convert_termid << "\n";
+
+        std::cout << "seconds_save_louds=" << seconds_save_louds << "\n";
+        std::cout << "seconds_save_louds_with_term_id=" << seconds_save_termid << "\n";
+
+        std::cout << "seconds_total_louds=" << seconds_total_louds << "\n";
+        std::cout << "seconds_total_louds_with_term_id=" << seconds_total_louds_with_term_id << "\n";
+
+        std::cout << "seconds_total_all=" << seconds_total_all << "\n";
+
         std::cout << "out_louds=" << out_louds.string() << "\n";
         std::cout << "out_louds_termid=" << out_louds_termid.string() << "\n";
         std::cout << "out_metrics=" << out_metrics.string() << "\n";
