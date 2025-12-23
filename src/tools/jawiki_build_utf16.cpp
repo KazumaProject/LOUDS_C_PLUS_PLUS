@@ -294,7 +294,7 @@ int main(int argc, char **argv)
         }
 
         // 1) Read titles and build tries (UTF-16)
-        PrefixTreeUtf16 trie;
+        PrefixTree trie;
         PrefixTreeWithTermIdUtf16 trie_termid;
 
         uint64_t word_count = 0;
@@ -336,9 +336,9 @@ int main(int argc, char **argv)
         gzclose(f);
 
         // 2) Convert -> LOUDS (UTF-16)
-        ConverterUtf16 conv;
+        Converter conv;
         auto t1 = std::chrono::steady_clock::now();
-        LOUDSUtf16 louds = conv.convert(trie.getRoot());
+        LOUDS louds = conv.convert(trie.getRoot());
         auto t2 = std::chrono::steady_clock::now();
         double seconds_convert_louds = std::chrono::duration<double>(t2 - t1).count();
 
