@@ -45,7 +45,7 @@ int main()
         const std::string path = "louds_writer_ascii_utf16.bin";
         louds.saveToFile(path);
 
-        LOUDSReader reader = LOUDSReader::loadFromFile(path);
+        LOUDSReaderUtf16 reader = LOUDSReaderUtf16::loadFromFile(path);
 
         auto r = reader.commonPrefixSearch(u"abcd");
         std::vector<std::u16string> expected = {u"a", u"ab", u"abc"};
@@ -72,7 +72,7 @@ int main()
         const std::string path = "louds_writer_hira_utf16.bin";
         louds.saveToFile(path);
 
-        LOUDSReader reader = LOUDSReader::loadFromFile(path);
+        LOUDSReaderUtf16 reader = LOUDSReaderUtf16::loadFromFile(path);
 
         auto r = reader.commonPrefixSearch(u"すみれいろ");
         std::vector<std::u16string> expected = {u"す", u"すみ", u"すみれ"};

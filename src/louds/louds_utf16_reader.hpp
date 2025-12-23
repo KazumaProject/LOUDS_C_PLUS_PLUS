@@ -13,10 +13,10 @@
 // 読み込み専用 LOUDSReader
 // - loadFromFile でロード
 // - 内部で SuccinctBitVector を構築し rank/select を高速化
-class LOUDSReader
+class LOUDSReaderUtf16
 {
 public:
-    LOUDSReader(const BitVector &lbs,
+    LOUDSReaderUtf16(const BitVector &lbs,
                 const BitVector &isLeaf,
                 std::vector<char16_t> labels);
 
@@ -30,7 +30,7 @@ public:
 
     const std::vector<char16_t> &getAllLabels() const { return labels_; }
 
-    static LOUDSReader loadFromFile(const std::string &path);
+    static LOUDSReaderUtf16 loadFromFile(const std::string &path);
 
 private:
     BitVector LBS_;
