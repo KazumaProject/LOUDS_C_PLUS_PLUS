@@ -69,6 +69,14 @@ jobs:
         run: |
           cmake --build build
 
+      - name: Verify tools exist
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ls -lh build || true
+          test -x build/jawiki_build_utf16
+          test -x build/louds_query_utf16 || true
+
       - name: Run unit tests
         run: |
           ctest --test-dir build --output-on-failure
@@ -87,7 +95,7 @@ jobs:
 
           ls -lh "data/${FILE}"
 
-      - name: Build LOUDS from jawiki titles and measure time
+      - name: Build LOUDS (UTF-16) from jawiki titles and measure time
         run: |
           set -euxo pipefail
           mkdir -p out
@@ -96,7 +104,7 @@ jobs:
 
           # /usr/bin/time の結果を out/time.txt に、プログラムの統計を out/metrics.json に出力
           /usr/bin/time -v \
-            build/jawiki_build \
+            build/jawiki_build_utf16 \
               --input "data/${FILE}" \
               --out-dir out \
               --prefix "jawiki_${DUMP}" \
