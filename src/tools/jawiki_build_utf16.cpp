@@ -278,7 +278,7 @@ int main(int argc, char **argv)
         const fs::path out_dir(args.out_dir);
         const fs::path out_louds = out_dir / (args.prefix + ".louds_utf16.bin");
         const fs::path out_louds_termid = out_dir / (args.prefix + ".louds_termid_utf16.bin");
-        const fs::path out_metrics = out_dir / "metrics_utf16.json";
+        const fs::path out_metrics = out_dir / "metrics.json";
 
         auto t_begin = std::chrono::steady_clock::now();
 
