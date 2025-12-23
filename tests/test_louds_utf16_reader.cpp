@@ -34,13 +34,13 @@ int main()
 {
     // 1) ASCII: writer->save, reader->load, commonPrefixSearch一致
     {
-        PrefixTree t;
+        PrefixTreeUtf16 t;
         t.insert(u"a");
         t.insert(u"ab");
         t.insert(u"abc");
 
-        Converter conv;
-        LOUDS louds = conv.convert(t.getRoot());
+        ConverterUtf16 conv;
+        LOUDSUtf16 louds = conv.convert(t.getRoot());
 
         const std::string path = "louds_writer_ascii_utf16.bin";
         louds.saveToFile(path);
@@ -61,13 +61,13 @@ int main()
 
     // 2) ひらがな: writer->save, reader->load, commonPrefixSearch一致
     {
-        PrefixTree t;
+        PrefixTreeUtf16 t;
         t.insert(u"す");
         t.insert(u"すみ");
         t.insert(u"すみれ");
 
-        Converter conv;
-        LOUDS louds = conv.convert(t.getRoot());
+        ConverterUtf16 conv;
+        LOUDSUtf16 louds = conv.convert(t.getRoot());
 
         const std::string path = "louds_writer_hira_utf16.bin";
         louds.saveToFile(path);

@@ -33,13 +33,13 @@ int main()
 {
     // 1) ASCII commonPrefixSearch + バイナリround-trip
     {
-        PrefixTree t;
+        PrefixTreeUtf16 t;
         t.insert(u"a");
         t.insert(u"ab");
         t.insert(u"abc");
 
-        Converter conv;
-        LOUDS louds = conv.convert(t.getRoot());
+        ConverterUtf16 conv;
+        LOUDSUtf16 louds = conv.convert(t.getRoot());
 
         auto r = louds.commonPrefixSearch(u"abcd");
         std::vector<std::u16string> expected = {u"a", u"ab", u"abc"};
@@ -53,7 +53,7 @@ int main()
         const std::string path = "louds_test_utf16_writer.bin";
         louds.saveToFile(path);
 
-        LOUDS loaded = LOUDS::loadFromFile(path);
+        LOUDSUtf16 loaded = LOUDSUtf16::loadFromFile(path);
         assert_true(loaded.equals(louds),
                     "LOUDS binary round-trip should preserve content");
 
@@ -65,14 +65,14 @@ int main()
 
     // 2) ひらがな commonPrefixSearch
     {
-        PrefixTree ht;
+        PrefixTreeUtf16 ht;
         ht.insert(u"か");
         ht.insert(u"かな");
         ht.insert(u"かなえ");
         ht.insert(u"かなる");
 
-        Converter hconv;
-        LOUDS hlouds = hconv.convert(ht.getRoot());
+        ConverterUtf16 hconv;
+        LOUDSUtf16 hlouds = hconv.convert(ht.getRoot());
 
         auto r = hlouds.commonPrefixSearch(u"かなえた");
         std::vector<std::u16string> expected = {u"か", u"かな", u"かなえ"};
@@ -86,18 +86,18 @@ int main()
 
     // 3) ひらがな binary round-trip
     {
-        PrefixTree ht;
+        PrefixTreeUtf16 ht;
         ht.insert(u"す");
         ht.insert(u"すみ");
         ht.insert(u"すみれ");
 
-        Converter hconv;
-        LOUDS hlouds = hconv.convert(ht.getRoot());
+        ConverterUtf16 hconv;
+        LOUDSUtf16 hlouds = hconv.convert(ht.getRoot());
 
         const std::string path = "louds_hiragana_test_utf16_writer.bin";
         hlouds.saveToFile(path);
 
-        LOUDS loaded = LOUDS::loadFromFile(path);
+        LOUDSUtf16 loaded = LOUDSUtf16::loadFromFile(path);
 
         assert_true(loaded.equals(hlouds),
                     "hiragana LOUDS binary round-trip should preserve content");
